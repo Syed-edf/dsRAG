@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-#test change SS
+
 from .file_parsing.vlm_file_parsing import parse_file, pdf_to_images
 from .file_parsing.non_vlm_file_parsing import parse_file_no_vlm
 from .file_parsing.element_types import default_element_types

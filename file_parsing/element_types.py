@@ -64,8 +64,8 @@ default_element_types = [
     },
     {
         "name": "Header",
-        "instructions": "This is the header of the page, which would be located at the very top of the page and may include things like page numbers. The text in a Header element is usually in a very small font size. This is NOT the same things as a Markdown header or heading. You should never user more than one header element per page. Not all pages have a header. Note that headers are not the same as titles or subtitles within the main text content of the page. Those should be included in NarrativeText elements.",
-        "is_visual": False,
+        "instructions": "This is the header of the page, which would be located at the very top of the page and may include things like page numbers. The text in a Header element is usually in a very small font size. A header might be a collection of images and text, so it might contain image such as company logos. This is NOT the same things as a Markdown header or heading. You should never user more than one header element per page. Not all pages have a header. Note that headers are not the same as titles or subtitles within the main text content of the page. Those should be included in NarrativeText elements.",
+        "is_visual": True,
     },
     {
         "name": "Footnote",

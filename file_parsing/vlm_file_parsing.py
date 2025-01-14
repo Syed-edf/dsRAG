@@ -9,7 +9,7 @@ from .element_types import (
     get_num_visual_elements,
     get_num_non_visual_elements,
 )
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, pdfinfo_from_path
 import json
 import time
 import concurrent.futures
@@ -32,7 +32,7 @@ Every element on the page should be classified as one of these types. There shou
 Here are detailed descriptions of the element types you can use:
 {element_description_block}
 
-For visual elements ({visual_elements_as_str}), you must provide a detailed description of the element in the "content" field. Do not just transcribe the actual text contained in the element. For textual elements ({non_visual_elements_as_str}), you must provide the exact text content of the element.
+For visual elements ({visual_elements_as_str}), you must provide a detailed description of the element in the "content" field. Also, please provide the description in the same language as the document. For example, if the document is in English, please provide the detailed description of the element in English. Do not just transcribe the actual text contained in the element. For textual elements ({non_visual_elements_as_str}), you must provide the exact text content of the element. 
 
 Output format
 - Your output should be an ordered (from top to bottom) list of elements on the page, where each element is a dictionary with the following keys:
@@ -72,20 +72,35 @@ def pdf_to_images(pdf_path: str, kb_id: str, doc_id: str, file_system: FileSyste
     
     # Create the folder
     file_system.create_directory(kb_id, doc_id)
-
-    # Convert PDF to images
-    images = convert_from_path(pdf_path, dpi=dpi)
-
-    # Save each image
+    print("Converting PDF to images")
+    info = pdfinfo_from_path(pdf_path, userpw=None, poppler_path=None)
+    maxPages = info["Pages"]
+    batch_size = 10
     image_file_paths = []
-    for i, image in enumerate(images):
-        #image_file_path = os.path.join(page_images_path, f'page_{i+1}.png')
-        file_system.save_image(kb_id, doc_id, f'page_{i+1}.png', image)
-        #image.save(image_file_path, 'PNG')
-        image_file_path = f'/{kb_id}/{doc_id}/page_{i+1}.png'
-        image_file_paths.append(image_file_path)
+    for batch_pages in range(1, maxPages+1, batch_size) : 
+        images = convert_from_path(pdf_path, dpi=200, first_page=batch_pages, last_page = min(batch_pages+batch_size-1,maxPages))
+        print(f"{batch_size+batch_pages} Converted")
+        for i, image in enumerate(images):
+            #image_file_path = os.path.join(page_images_path, f'page_{i+1}.png')
+            file_system.save_image(kb_id, doc_id, f'page_{i+batch_pages}.png', image)
+            #image.save(image_file_path, 'PNG')
+            image_file_path = f'/{kb_id}/{doc_id}/page_{i+batch_pages}.png'
+            image_file_paths.append(image_file_path)
+        print(f"{batch_size+batch_pages} saved")
 
-    print(f"Converted {len(images)} pages to images")
+    # # Convert PDF to images
+    # images = convert_from_path(pdf_path, dpi=dpi, thread_count=100)
+    # print("Images converted")
+    # # Save each image
+    # image_file_paths = []
+    # for i, image in enumerate(images):
+    #     #image_file_path = os.path.join(page_images_path, f'page_{i+1}.png')
+    #     file_system.save_image(kb_id, doc_id, f'page_{i+1}.png', image)
+    #     #image.save(image_file_path, 'PNG')
+    #     image_file_path = f'/{kb_id}/{doc_id}/page_{i+1}.png'
+    #     image_file_paths.append(image_file_path)
+
+    print(f"Converted {maxPages} pages to images")
     return image_file_paths
 
 def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: int, vlm_config: VLMConfig, element_types: list[ElementType]) -> list[Element]:
@@ -158,8 +173,8 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
     
     try:
         page_content = json.loads(llm_output)
-    except:
-        print(f"Error for {page_image_path}")
+    except Exception as e:
+        print(f"Error for {page_image_path} : {e}")
         page_content = []
 
     # add page number to each element

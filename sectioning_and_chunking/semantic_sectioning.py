@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from anthropic import Anthropic
 from openai import OpenAI
+import vertexai
+from vertexai.generative_models import GenerativeModel, SafetySetting
 import instructor
 from ..models.types import SemanticSectioningConfig, Line, Section, Element, ElementType
 
@@ -14,6 +16,19 @@ class StructuredDocument(BaseModel):
     """obtains meaningful sections, each centered around a single concept/topic"""
     sections: List[DocumentSection] = Field(description="a list of sections of the document")
 
+safetysettings = [SafetySetting(**{"category": "HARM_CATEGORY_HARASSMENT",
+                  "threshold": "BLOCK_NONE",
+                  }),
+SafetySetting(**{"category": "HARM_CATEGORY_HATE_SPEECH",
+                 "threshold": "BLOCK_NONE",
+                 }),
+SafetySetting(**{"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                 "threshold": "BLOCK_NONE",
+                 }),
+SafetySetting(**{"category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                 "threshold": "BLOCK_NONE",
+                 }),       
+] 
 
 SYSTEM_PROMPT = """
 Read the document below and extract a StructuredDocument object from it where each section of the document is centered around a single concept/topic. Whenever possible, your sections (and section titles) should match up with the natural sections of the document (i.e. Introduction, Conclusion, References, etc.). Sections can vary in length, but should generally be anywhere from a few paragraphs to a few pages long.
@@ -89,8 +104,25 @@ def get_structured_document(document_with_line_numbers: str, start_line: int, ll
                 },
             ],
         )
+    elif llm_provider == "vertex_ai":
+        if model is None:
+            model="gemini-1.5-pro-001"
+        client = instructor.from_vertexai(
+            client=GenerativeModel(model, system_instruction=formatted_system_prompt, safety_settings=safetysettings),
+            mode=instructor.Mode.VERTEXAI_TOOLS,
+        )
+        return client.chat.completions.create(
+            response_model=StructuredDocument,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [document_with_line_numbers],
+                }
+            ],
+        )
+        
     else:
-        raise ValueError("Invalid provider. Must be either 'anthropic' or 'openai'.")
+        raise ValueError("Invalid provider. Must be either 'anthropic' or 'openai' or 'vertex_ai'.")
 
 def get_sections_text(sections: List[DocumentSection], document_lines: List[Line]) -> List[Section]:
     """
