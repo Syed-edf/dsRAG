@@ -42,4 +42,4 @@ Contact = "https://github.com/D-Star-AI/dsRAG/blob/main/dsrag/dsparse/README.md"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dsparse"]
+include = ["dsparse", "dsparse.*"]
