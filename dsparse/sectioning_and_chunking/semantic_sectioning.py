@@ -106,7 +106,7 @@ def get_structured_document(document_with_line_numbers: str, start_line: int, ll
         )
     elif llm_provider == "vertex_ai":
         if model is None:
-            model="gemini-1.5-pro-001"
+            model="gemini-2.0-flash-001"
         client = instructor.from_vertexai(
             client=GenerativeModel(model, system_instruction=formatted_system_prompt, safety_settings=safetysettings),
             mode=instructor.Mode.VERTEXAI_TOOLS,
