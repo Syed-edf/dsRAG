@@ -122,7 +122,7 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
         vlm_config["provider"] = "gemini"
     if "model" not in vlm_config:
         if vlm_config["provider"] == "gemini":
-            vlm_config["model"] = "gemini-1.5-flash-002"
+            vlm_config["model"] = "gemini-2.0-flash"
         else:
             raise ValueError("Non-default VLM provider specified without specifying model")
 
@@ -150,10 +150,21 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
             )
         except Exception as e:
             if "429 Online prediction request quota exceeded" in str(e):
-                print (f"Error in make_llm_call_gemini: {e}")
+                print (f"Error in make_llm_call_vertex: {e}")
                 return 429
             else:
                 print (f"Error in make_llm_call_gemini: {e}")
+                error_data = {
+                    "error": f"Error in make_llm_call_gemini: {e}",
+                    "function": "parse_page",
+                }
+                try:
+                    file_system.log_error(kb_id, doc_id, error_data)
+                except:
+                    print ("Failed to log error")
+                finally:
+                    return 429
+                
     elif vlm_config["provider"] == "gemini":
         try:
             llm_output = make_llm_call_gemini(
@@ -166,16 +177,38 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
         except Exception as e:
             if "429 Online prediction request quota exceeded" in str(e):
                 print (f"Error in make_llm_call_gemini: {e}")
-                return
+                return 429
             else:
                 print (f"Error in make_llm_call_gemini: {e}")
+                error_data = {
+                    "error": f"Error in make_llm_call_gemini: {e}",
+                    "function": "parse_page",
+                }
+                try:
+                    file_system.log_error(kb_id, doc_id, error_data)
+                except:
+                    print ("Failed to log error")
+                finally:
+                    llm_output = json.dumps([{
+                        "type": "text",
+                        "content": "Unable to process page"
+                    }])
+                    
     else:
         raise ValueError("Invalid provider specified in the VLM config. Only 'vertex_ai' and 'gemini' are supported for now.")
     
     try:
         page_content = json.loads(llm_output)
     except Exception as e:
-        print(f"Error for {page_image_path} : {e}")
+        print(f"Error for {page_image_path}: {e}")
+        error_data = {
+            "error": f"Error parsing JSON for {page_image_path}: {e}",
+            "function": "parse_page",
+        }
+        try:
+            file_system.log_error(kb_id, doc_id, error_data)
+        except:
+            print ("Failed to log error")
         page_content = []
 
     # add page number to each element
@@ -231,7 +264,6 @@ def parse_file(pdf_path: str, kb_id: str, doc_id: str, vlm_config: VLMConfig, fi
                 tries += 1
                 continue
             else:
-                print ("Successfully processed page")
                 return page_number, content
 
     # Use ThreadPoolExecutor to process pages in parallel

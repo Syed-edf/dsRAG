@@ -1,6 +1,84 @@
 # dsParse
 dsParse is a sub-module of dsRAG that does multimodal file parsing, semantic sectioning, and chunking. You provide a file path (and some config params) and receive nice clean chunks.
 
+# dsRAG
+[![Discord](https://img.shields.io/discord/1234629280755875881.svg?label=Discord&logo=discord&color=7289DA)](https://discord.gg/NTUVX9DmQ3)
+[![Documentation](https://img.shields.io/badge/docs-online-green.svg)](https://d-star-ai.github.io/dsRAG/)
+
+The two creators of dsRAG, Zach and Nick McCormick, run a small applied AI consulting firm. We specialize in building high-performance RAG-based applications (naturally). As former startup founders and YC alums, we bring a business and product-centric perspective to the projects we work on. We do a mix of advisory and implementation work. If you'd like to hire us, fill out this [form](https://forms.gle/zbQwDJp7pBQKtqVT8) and we'll be in touch.
+
+## What is dsRAG?
+dsRAG is a retrieval engine for unstructured data. It is especially good at handling challenging queries over dense text, like financial reports, legal documents, and academic papers. dsRAG achieves substantially higher accuracy than vanilla RAG baselines on complex open-book question answering tasks. On one especially challenging benchmark, [FinanceBench](https://arxiv.org/abs/2311.11944), dsRAG gets accurate answers 96.6% of the time, compared to the vanilla RAG baseline which only gets 32% of questions correct.
+
+There are three key methods used to improve performance over vanilla RAG systems:
+1. Semantic sectioning
+2. AutoContext
+3. Relevant Segment Extraction (RSE)
+
+#### Semantic sectioning
+Semantic sectioning uses an LLM to break a document into sections. It works by annotating the document with line numbers and then prompting an LLM to identify the starting and ending lines for each “semantically cohesive section.” These sections should be anywhere from a few paragraphs to a few pages long. The sections then get broken into smaller chunks if needed. The LLM is also prompted to generate descriptive titles for each section. These section titles get used in the contextual chunk headers created by AutoContext, which provides additional context to the ranking models (embeddings and reranker), enabling better retrieval.
+
+#### AutoContext (contextual chunk headers)
+AutoContext creates contextual chunk headers that contain document-level and section-level context, and prepends those chunk headers to the chunks prior to embedding them. This gives the embeddings a much more accurate and complete representation of the content and meaning of the text. In our testing, this feature leads to a dramatic improvement in retrieval quality. In addition to increasing the rate at which the correct information is retrieved, AutoContext also substantially reduces the rate at which irrelevant results show up in the search results. This reduces the rate at which the LLM misinterprets a piece of text in downstream chat and generation applications.
+
+#### Relevant Segment Extraction
+Relevant Segment Extraction (RSE) is a query-time post-processing step that takes clusters of relevant chunks and intelligently combines them into longer sections of text that we call segments. These segments provide better context to the LLM than any individual chunk can. For simple factual questions, the answer is usually contained in a single chunk; but for more complex questions, the answer usually spans a longer section of text. The goal of RSE is to intelligently identify the section(s) of text that provide the most relevant information, without being constrained to fixed length chunks.
+
+For example, suppose you have a bunch of SEC filings in a knowledge base and you ask “What were Apple’s key financial results in the most recent fiscal year?” RSE will identify the most relevant segment as the entire “Consolidated Statement of Operations” section, which will be 5-10 chunks long. Whereas if you ask “Who is Apple’s CEO?” the most relevant segment will be identified as a single chunk that mentions “Tim Cook, CEO.”
+
+# Eval results
+We've evaluated dsRAG on a couple of end-to-end RAG benchmarks.
+
+#### FinanceBench
+First, we have [FinanceBench](https://arxiv.org/abs/2311.11944). This benchmark uses a corpus of a few hundred 10-Ks and 10-Qs. The queries are challenging, and often require combining multiple pieces of information. Ground truth answers are provided. Answers are graded manually on a pass/fail basis. Minor allowances for rounding errors are allowed, but other than that the answer must exactly match the ground truth answer to be considered correct.
+
+The baseline retrieval pipeline, which uses standard chunking and top-k retrieval, achieves a score of **19%** according to the paper, and **32%** according to our own experiment, which uses updated embedding and response models. dsRAG, using mostly default parameters and Claude 3.5 Sonnet (10-22-2024 version) for response generation, achieves a score of **96.6%**.
+
+#### KITE
+We couldn't find any other suitable end-to-end RAG benchmarks, so we decided to create our own, called [KITE](https://github.com/D-Star-AI/KITE) (Knowledge-Intensive Task Evaluation).
+
+KITE currently consists of 4 datasets and a total of 50 questions.
+- **AI Papers** - ~100 academic papers about AI and RAG, downloaded from arXiv in PDF form.
+- **BVP Cloud 10-Ks** - 10-Ks for all companies in the Bessemer Cloud Index (~70 of them), in PDF form.
+- **Sourcegraph Company Handbook** - ~800 markdown files, with their original directory structure, downloaded from Sourcegraph's publicly accessible company handbook GitHub [page](https://github.com/sourcegraph/handbook/tree/main/content).
+- **Supreme Court Opinions** - All Supreme Court opinions from Term Year 2022 (delivered from January '23 to June '23), downloaded from the official Supreme Court [website](https://www.supremecourt.gov/opinions/slipopinion/22) in PDF form.
+
+Ground truth answers are included with each sample. Most samples also include grading rubrics. Grading is done on a scale of 0-10 for each question, with a strong LLM doing the grading.
+
+We tested four configurations:
+- Top-k retrieval (baseline)
+- Relevant segment extraction (RSE)
+- Top-k retrieval with contextual chunk headers (CCH)
+- CCH+RSE (dsRAG default config, minus semantic sectioning)
+
+Testing RSE and CCH on their own, in addition to testing them together, lets us see the individual contributions of those two features.
+
+Cohere English embeddings and the Cohere 3 English reranker were used for all configurations. LLM responses were generated with GPT-4o, and grading was also done with GPT-4o.
+
+|                         | Top-k    | RSE    | CCH+Top-k    | CCH+RSE    |
+|-------------------------|----------|--------|--------------|------------|
+| AI Papers               | 4.5      | 7.9    | 4.7          | 7.9        |
+| BVP Cloud               | 2.6      | 4.4    | 6.3          | 7.8        |
+| Sourcegraph             | 5.7      | 6.6    | 5.8          | 9.4        |
+| Supreme Court Opinions  | 6.1      | 8.0    | 7.4          | 8.5        |
+| **Average**             | 4.72     | 6.73   | 6.04         | 8.42       |
+
+Using CCH and RSE together leads to a dramatic improvement in performance, from 4.72 -> 8.42. Looking at the RSE and CCH+Top-k results, we can see that using each of those features individually leads to a large improvement over the baseline, with RSE appearing to be slightly more important than CCH.
+
+Note: we did not use semantic sectioning for any of the configurations tested here. We'll evaluate that one separately once we finish some of the improvements we're working on for it. We also did not use AutoQuery, as the KITE questions are all suitable for direct use as search queries.
+
+# Tutorial
+
+#### Installation
+To install the python package, run
+```console
+pip install dsrag
+```
+
+#### Quickstart
+By default, dsRAG uses OpenAI for embeddings and AutoContext, and Cohere for reranking, so to run the code below you'll need to make sure you have API keys for those providers set as environmental variables with the following names: `OPENAI_API_KEY` and `CO_API_KEY`. **If you want to run dsRAG with different models, take a look at the "Basic customization" section below.**
+
+You can create a new KnowledgeBase directly from a file using the `create_kb_from_file` helper function:
 ```python
 sections, chunks = parse_and_chunk(
     kb_id = "sample_kb",
