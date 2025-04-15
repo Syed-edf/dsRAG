@@ -139,6 +139,10 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
 
     if vlm_config["provider"] == "vertex_ai":
         try:
+            # Get temperature from vlm_config or use default
+            # NOTE: it's very important to use a non-zero temperature here
+            # Using a temp of 0 causes frequent degenerative output that can't be fixed by retrying
+            temperature = vlm_config.get("temperature", 0.5) 
             llm_output = make_llm_call_vertex(
                 image_path=page_image_path, 
                 system_message=system_message, 
@@ -146,11 +150,12 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
                 project_id=vlm_config["project_id"], 
                 location=vlm_config["location"],
                 response_schema=response_schema,
-                max_tokens=4000
+                max_tokens=4000,
+                temperature=temperature
             )
         except Exception as e:
             if "429 Online prediction request quota exceeded" in str(e):
-                print (f"Error in make_llm_call_vertex: {e}")
+                print (f"Rate limit exceeded in make_llm_call_vertex: {e}")
                 return 429
             else:
                 print (f"Error in make_llm_call_gemini: {e}")
@@ -263,8 +268,15 @@ def parse_file(pdf_path: str, kb_id: str, doc_id: str, vlm_config: VLMConfig, fi
                 time.sleep(10)
                 tries += 1
                 continue
+            # Check if the content is empty - a signal that JSON parsing failed
+            if isinstance(content, list) and len(content) == 0:
+                # This suggests we had a JSON parsing error
+                print(f"Empty content returned, likely due to JSON parsing error. Retrying... (retry_attempt = {tries+1})")
+                tries += 1
+                continue
             else:
                 return page_number, content
+        return page_number, [{"type": "NarrativeText", "content": "Failed to process page after multiple attempts", "page_number": page_number}]
 
     # Use ThreadPoolExecutor to process pages in parallel
     with concurrent.futures.ThreadPoolExecutor() as executor:
