@@ -6,7 +6,7 @@ import os
 import io
 
 
-def make_llm_call_vertex(image_path: str, system_message: str, model: str, project_id: str, location: str, response_schema: dict = None, max_tokens: int = 4000) -> str:
+def make_llm_call_vertex(image_path: str, system_message: str, model: str, project_id: str, location: str, response_schema: dict = None, max_tokens: int = 4000, temperature: int = 0) -> str:
     """
     This function calls the Vertex AI Gemini API (not to be confused with the Gemini API) with an image and a system message and returns the response text.
     """
@@ -14,9 +14,9 @@ def make_llm_call_vertex(image_path: str, system_message: str, model: str, proje
     model = gm.GenerativeModel(model)
     
     if response_schema is not None:
-        generation_config = gm.GenerationConfig(temperature=0.0, max_output_tokens=max_tokens, response_mime_type="application/json", response_schema=response_schema)
+        generation_config = gm.GenerationConfig(temperature=temperature, max_output_tokens=max_tokens, response_mime_type="application/json", response_schema=response_schema)
     else:
-        generation_config = gm.GenerationConfig(temperature=0.0, max_output_tokens=max_tokens)
+        generation_config = gm.GenerationConfig(temperature=temperature, max_output_tokens=max_tokens)
     
     response = model.generate_content(
         [
