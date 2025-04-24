@@ -32,7 +32,7 @@ Every element on the page should be classified as one of these types. There shou
 Here are detailed descriptions of the element types you can use:
 {element_description_block}
 
-For visual elements ({visual_elements_as_str}), you must provide a detailed description of the element in the "content" field. Also, please provide the description in the same language as the document. For example, if the document is in English, please provide the detailed description of the element in English. Do not just transcribe the actual text contained in the element. For textual elements ({non_visual_elements_as_str}), you must provide the exact text content of the element. 
+For visual elements ({visual_elements_as_str}), you must provide a detailed description of the element in the "content" field. Also, please provide the description in the same language as the document. For example, if the document is in English, please provide the detailed description of the element in English. If the dominant language in the page is French, Please provide the description in French, etc. Do not just transcribe the actual text contained in the element, but make sure to do so when its possible along with the description of the element. For textual elements ({non_visual_elements_as_str}), you must provide the exact text content of the element. 
 
 Output format
 - Your output should be an ordered (from top to bottom) list of elements on the page, where each element is a dictionary with the following keys:
