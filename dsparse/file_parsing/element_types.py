@@ -54,8 +54,8 @@ default_element_types = [
     },
     {
         "name": "Table",
-        "instructions": "This covers any tabular data arrangement on the page, including simple and complex tables. Any titles, captions, or notes associated with the table should be considered part of the table element.",
-        "is_visual": True,
+        "instructions": "This covers any tabular data arrangement on the page, including simple and complex tables. Any titles, captions, or notes associated with the table should be considered part of the table element. Please extract all the data in a table.",
+        "is_visual": False,
     },
     {
         "name": "Equation",

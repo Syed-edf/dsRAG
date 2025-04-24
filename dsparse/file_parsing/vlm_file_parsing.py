@@ -40,7 +40,6 @@ Output format
     - content: str - the content of the element. For visual elements, this should be a detailed description of the visual content, rather than a transcription of the actual text contained in the element. You can use Markdown formatting for text content.
 
 Complex and multi-part figures or images should be represented as a single element. For example, if a figure consists of a main chart and a smaller inset chart, these should be described together in a single Figure element. If there are two separate graphs side by side, these should be represented as a single Figure element with a bounding box that encompasses both graphs. DO NOT create separate elements for each part of a complex figure or image.
-Furthermore, certains pages, specifically in the index pages, might containing a large number of dots are other characters in their listing seperating the topic from its page number. Try to ignore these unnescesary characters. MAKE SURE that these dots have no other utility and do not impact the context in any other way.
 """
 
 response_schema = {
@@ -142,7 +141,7 @@ def parse_page(kb_id: str, doc_id: str, file_system: FileSystem, page_number: in
             # Get temperature from vlm_config or use default
             # NOTE: it's very important to use a non-zero temperature here
             # Using a temp of 0 causes frequent degenerative output that can't be fixed by retrying
-            temperature = vlm_config.get("temperature", 0.5) 
+            temperature = vlm_config.get("temperature", 0.7) 
             llm_output = make_llm_call_vertex(
                 image_path=page_image_path, 
                 system_message=system_message, 
