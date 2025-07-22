@@ -2,6 +2,26 @@ import PIL.Image
 import os
 import io
 from ..utils.imports import vertexai, genai_new
+from google.genai.types import (
+    GenerateContentConfig,
+    HarmCategory,
+    HarmBlockThreshold,
+    HttpOptions,
+    SafetySetting,
+)
+safetysettings = [SafetySetting(**{"category": "HARM_CATEGORY_HARASSMENT",
+                  "threshold": "BLOCK_NONE",
+                  }),
+SafetySetting(**{"category": "HARM_CATEGORY_HATE_SPEECH",
+                 "threshold": "BLOCK_NONE",
+                 }),
+SafetySetting(**{"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                 "threshold": "BLOCK_NONE",
+                 }),
+SafetySetting(**{"category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                 "threshold": "BLOCK_NONE",
+                 }),       
+] 
 
 def make_llm_call_gemini(image_path: str, system_message: str, model: str = "gemini-2.0-flash", response_schema: dict = None, max_tokens: int = 4000, temperature: float = 0.5) -> str:
     # With the newer Google GenAI SDK, we need to create a client
@@ -75,7 +95,7 @@ def make_llm_call_vertex(image_path: str, system_message: str, model: str, proje
     This function calls the Vertex AI Gemini API (not to be confused with the Gemini API) with an image and a system message and returns the response text.
     """
    # With the newer Google GenAI SDK, we need to create a client
-    client = genai_new.Client(project=project_id, location="location")
+    client = genai_new.Client(vertexiai =True,project=project_id, location="location")
 
     # Create generation config with the correct GenerateContentConfig type
     config = genai_new.types.GenerateContentConfig(
@@ -110,7 +130,8 @@ def make_llm_call_vertex(image_path: str, system_message: str, model: str, proje
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 response_mime_type="application/json",
-                thinking_config=genai_new.types.ThinkingConfig(thinking_budget=0)
+                thinking_config=genai_new.types.ThinkingConfig(thinking_budget=thinking_budget),
+                safety_settings=safetysettings
             )
 
             # Add response schema if provided
