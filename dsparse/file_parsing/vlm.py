@@ -74,22 +74,72 @@ def make_llm_call_vertex(image_path: str, system_message: str, model: str, proje
     """
     This function calls the Vertex AI Gemini API (not to be confused with the Gemini API) with an image and a system message and returns the response text.
     """
-    vertexai.init(project=project_id, location=location)
-    model = vertexai.generative_models.GenerativeModel(model)
-    
-    if response_schema is not None:
-        generation_config = vertexai.generative_models.GenerationConfig(temperature=temperature, max_output_tokens=max_tokens, response_mime_type="application/json", response_schema=response_schema)
-    else:
-        generation_config = vertexai.generative_models.GenerationConfig(temperature=temperature, max_output_tokens=max_tokens)
-    
-    response = model.generate_content(
-        [
-            vertexai.generative_models.Part.from_image(vertexai.generative_models.Image.load_from_file(image_path)),
-            system_message,
-        ],
-        generation_config=generation_config,
+   # With the newer Google GenAI SDK, we need to create a client
+    client = genai_new.Client(project=project_id, location="location")
+
+    # Create generation config with the correct GenerateContentConfig type
+    config = genai_new.types.GenerateContentConfig(
+        temperature=temperature,
+        max_output_tokens=max_tokens,
+        response_mime_type="application/json"
     )
-    return response.text
+
+    # Add response schema if provided
+    if response_schema is not None:
+        config.response_schema = response_schema
+
+    try:
+        # Open and compress the image
+        image = PIL.Image.open(image_path)
+        compressed_image_bytes, _ = compress_image(image) # Quality is returned but not used here
+
+        # Close the original image object now that compression is done
+        if image:
+            image.close()
+            # The 'image' variable still exists and will be handled by the finally block,
+            # PIL's close() is typically safe to call multiple times.
+
+        # Create content parts using bytes
+        image_part = genai_new.types.Part.from_bytes(data=compressed_image_bytes, mime_type='image/jpeg')
+        content_parts = [image_part, system_message]
+
+        # For Gemini 2.5 models, disable thinking
+        if model.startswith("gemini-2.5"):
+            thinking_budget = 0 if "flash" in model else 1
+            gemini25_config = genai_new.types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                response_mime_type="application/json",
+                thinking_config=genai_new.types.ThinkingConfig(thinking_budget=0)
+            )
+
+            # Add response schema if provided
+            if response_schema is not None:
+                gemini25_config.response_schema = response_schema
+
+            # Generate content with thinking disabled
+            response = client.models.generate_content(
+                model=model,
+                contents=content_parts,
+                config=gemini25_config
+            )
+        else:
+            # Standard call for other Gemini models
+            response = client.models.generate_content(
+                model=model,
+                contents=content_parts,
+                config=config
+            )
+
+        return response.text
+    finally:
+        # Ensure image is closed even if an error occurs
+        if 'image' in locals() and image: # Check if image was defined and not None
+            try:
+                image.close() # Attempt to close; safe if already closed
+            except Exception:
+                pass # Ignore errors if it fails (e.g., trying to close a None object or already closed and problematic)
+
 
 def compress_image(image: PIL.Image.Image, max_size_bytes: int = 1097152, quality: int = 95) -> tuple[bytes, int]:
     """
