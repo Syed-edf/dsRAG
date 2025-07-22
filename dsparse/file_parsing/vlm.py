@@ -125,7 +125,9 @@ def make_llm_call_vertex(image_path: str, system_message: str, model: str, proje
 
         # For Gemini 2.5 models, disable thinking
         if model.startswith("gemini-2.5"):
-            thinking_budget = 0 if "flash" in model else 128
+            print(model)
+            thinking_budget = 0 if "flash" in model else 129
+            print(f"{thinking_budget=}")
             gemini25_config = genai_new.types.GenerateContentConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens,
