@@ -95,7 +95,7 @@ def make_llm_call_vertex(image_path: str, system_message: str, model: str, proje
     This function calls the Vertex AI Gemini API (not to be confused with the Gemini API) with an image and a system message and returns the response text.
     """
    # With the newer Google GenAI SDK, we need to create a client
-    client = genai_new.Client(vertexiai =True,project=project_id, location="location")
+    client = genai_new.Client(vertexai =True,project=project_id, location="location")
 
     # Create generation config with the correct GenerateContentConfig type
     config = genai_new.types.GenerateContentConfig(
